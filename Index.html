@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text-to-Speech Website</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Text to Speech Generator</h1>
+
+<textarea id="text-input" placeholder="Type your text here..."></textarea>
+
+<h3>Select Voice</h3>
+<select id="voice-select">
+  <option value="elevenlabs">ElevenLabs</option>
+  <option value="cartesia">Cartesia AI</option>
+  <option value="custom">Custom Voice ID</option>
+</select>
+
+<input type="text" id="custom-voice-id" placeholder="Enter Custom Voice ID or Link" style="display:none;">
+
+<button id="generate-btn">Generate Voice</button>
+<audio id="audio-player" controls></audio>
+
+<script src="script.js"></script>
+</body>
+</html>const voiceSelect = document.getElementById('voice-select');
+const customInput = document.getElementById('custom-voice-id');
+
+voiceSelect.addEventListener('change', () => {
+    if(voiceSelect.value === 'custom'){
+        customInput.style.display = 'block';
+    } else {
+        customInput.style.display = 'none';
+    }
+});
+
+document.getElementById('generate-btn').addEventListener('click', async () => {
+    const text = document.getElementById('text-input').value;
+    const voice = voiceSelect.value;
+    const customId = customInput.value;
+
+    const response = await fetch('/generate-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, customId })
+    });
+
+    const data = await response.json();
+    document.getElementById('audio-player').src = data.audioUrl;
+});const express = require('express');
+const bodyParser = require('body-parser');
+const elevenlabs = require('./elevenlabs');
+const cartesia = require('./cartesia');
+
+const app = express();
+app.use(bodyParser.json());
+app.use(express.static('../website')); // Website folder serve karne ke liye
+
+app.post('/generate-voice', async (req, res) => {
+    const { text, voice, customId } = req.body;
+    let audioUrl;
+
+    try {
+        if(voice === 'elevenlabs'){
+            audioUrl = await elevenlabs.generateVoice(text);
+        } else if(voice === 'cartesia'){
+            audioUrl = await cartesia.generateVoice(text);
+        } else if(voice === 'custom'){
+            audioUrl = await elevenlabs.generateVoice(text, customId); // Custom voice ID example
+        }
+        res.json({ audioUrl });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.listen(3000, () => console.log('Server running on http://localhost:3000'));
